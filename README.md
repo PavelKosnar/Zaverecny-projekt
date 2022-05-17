@@ -1,2 +1,5 @@
-# Zaverecny-projekt
-Závěrečná ročníková práce
+# Dálkové ovládání domácnosti
+- ovladač
+- aplikace
+
+esp8266
