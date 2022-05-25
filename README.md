@@ -2,6 +2,7 @@
 - ovladač
 - aplikace
 
-esp8266 / 4 relay esp8266
-mptt server
-home assistent
+# Součástky a služby
+  esp8266 / 4 relay esp8266
+  mptt server
+  home assistent
