@@ -4,5 +4,5 @@
 
 # Součástky a služby
 - esp8266 / 4 relay esp8266
-- mptt server
+- mqtt server
 - home assistent
