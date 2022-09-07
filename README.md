@@ -18,3 +18,13 @@ Kód si představuji psát v jazyce python.
 ## Zdroje
 1. MicroPython esp8266 tutorial:
    - https://docs.micropython.org/en/latest/esp8266/tutorial
+
+
+# TO DO
+- koupit součástky (esp8266, relé...)
+- napsat kód na rozsvícení ledek (simulace motoru)
+- naprogramovat:
+  - rolety dolů
+  - rolety nahoru
+  - naklopení rolet
+- všechno sestavit a zprovoznit
