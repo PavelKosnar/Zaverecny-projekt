@@ -8,6 +8,7 @@
 - mqtt server
 - home assistent
 - python
+- platformio
 
 V mém projektu bych se chtěl věnovat dálkovému ovládání domácnosti pomocí esp8266.\
 Projekt si představuji tak, že bych měl malý model rolet a k tomu bych sestrojil ovládání.\
