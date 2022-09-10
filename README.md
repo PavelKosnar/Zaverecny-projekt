@@ -18,14 +18,20 @@ Kód si představuji psát v jazyce python.
 # TO DO
 - koupit součástky (esp8266, relé...)
 - napsat kód na rozsvícení ledek (simulace motoru)
+- připojit k home assistantu (MQTT a ESPHome)
 - naprogramovat:
   - rolety dolů
   - rolety nahoru
   - naklopení rolet
 - všechno sestavit a zprovoznit
 
-
+# Problémy
+- Zařízení se mi nedaří připojit k wi-fi pomocí ESPHome
 
 ## Zdroje
 1. MicroPython esp8266 tutorial:
    - https://docs.micropython.org/en/latest/esp8266/tutorial
+2. Instalace, zprovoznění a add-ons home assistanta
+   - https://www.youtube.com/watch?v=sVqyDtEjudk&ab_channel=TheHookUp
+3. Připojení esp8266 k home assistantovi pomocí MQTT a ESPHome
+   - https://youtu.be/NGCUfZhxY9U
