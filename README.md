@@ -11,7 +11,7 @@
 - platformio
 
 V mém projektu bych se chtěl věnovat dálkovému ovládání domácnosti pomocí esp8266.\
-Projekt si představuji tak, že bych měl malý model rolet a k tomu bych sestrojil ovládání.\
+Projekt si představuji tak, že bych měl malý model žaluzií a k tomu bych sestrojil ovládání.\
 Kód si představuji psát v jazyce python.
 
 
