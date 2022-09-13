@@ -20,13 +20,13 @@ Kód si představuji psát v jazyce python.
 - napsat kód na rozsvícení ledek (simulace motoru)
 - připojit k home assistantu (MQTT a ESPHome)
 - naprogramovat:
-  - rolety dolů
-  - rolety nahoru
-  - naklopení rolet
+  - žaluzie dolů
+  - žaluzie nahoru
+  - naklopení žaluzií
 - všechno sestavit a zprovoznit
 
 # Problémy
-- Zařízení se mi nedaří připojit k wi-fi pomocí ESPHome
+- ESP se mi nedaří připojit k wi-fi pomocí ESPHome
 
 ## Zdroje
 1. MicroPython esp8266 tutorial:
