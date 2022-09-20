@@ -7,16 +7,15 @@
 - esp8266 / 4 relay esp8266
 - mqtt server
 - home assistent
-- python
 - platformio
 
 V mém projektu bych se chtěl věnovat dálkovému ovládání domácnosti pomocí esp8266.\
 Projekt si představuji tak, že bych měl malý model žaluzií a k tomu bych sestrojil ovládání.\
-Kód si představuji psát v jazyce python.
+Kód si představuji psát v jazyce c++.
 
 
 # TO DO
-- koupit součástky (esp8266, relé...)
+- ~~koupit součástky (esp8266, relé...)~~
 - napsat kód na rozsvícení ledek (simulace motoru)
 - připojit k home assistantu (MQTT a ESPHome)
 - naprogramovat:
@@ -26,7 +25,10 @@ Kód si představuji psát v jazyce python.
 - všechno sestavit a zprovoznit
 
 # Problémy
-- ESP se mi nedaří připojit k wi-fi pomocí ESPHome
+### ESP se mi nedaří připojit k wi-fi pomocí ESPHome
+- Fix:
+  - Připojoval jsem se k 5G WiFi, kterou esp nepodporuje
+  - Stačilo se připojit k normální 2.4GHZ WiFi
 
 ## Zdroje
 1. MicroPython esp8266 tutorial:
