@@ -1,0 +1,13 @@
+h1 {
+    text-align: center;
+    color: red;
+    font-weight: normal !important;
+}
+
+.home:hover {
+    cursor:pointer;
+}
+
+.buttons {
+    align-items: center;
+}

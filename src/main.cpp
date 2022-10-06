@@ -3,30 +3,13 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 
+// nahrani slozky data: "pio run -t uploadfs"
 
-const char* ssid     = "jmeno";
-const char* password = "heslo";
+
+const char* ssid     = "KM";
+const char* password = "Pavel9317";
 
 const int ledPin = 5;
-
-const char index_html[] PROGMEM = R"rawliteral(<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blinds</title>
-
-    <link rel="stylesheet" type="text/css" href="style.css">
-</head>
-<body>
-    <h1>Blinds</h1>
-    <p>
-        <a href="/on"><button class="button">ON</button></a>
-        <a href="/off"><button class="button button2">OFF</button></a>
-    </p>
-</body>
-</html>)rawliteral";
 
 AsyncWebServer server(80);
 
@@ -61,17 +44,24 @@ void setup() {
 
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", index_html);
+    request->send(SPIFFS, "/index.html", String());
+  });
+
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/style.css","text/css");
+  });
+  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/script.js","text/javascript");
   });
 
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
     digitalWrite(ledPin, HIGH);    
-    request->send(200, "text/html", index_html);
+    request->send(SPIFFS, "/index.html", String());
   });
 
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
     digitalWrite(ledPin, LOW);    
-    request->send(200, "text/html", index_html);
+    request->send(SPIFFS, "/index.html", String());
   });
 
   server.onNotFound(notFound);
