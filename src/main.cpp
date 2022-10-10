@@ -9,7 +9,8 @@
 const char* ssid     = "KM";
 const char* password = "Pavel9317";
 
-const int ledPin = 5;
+const int ledUp = 5;
+const int ledDown = 4;
 
 AsyncWebServer server(80);
 
@@ -18,8 +19,10 @@ void notFound(AsyncWebServerRequest *request) {
 };
 
 void setup() {
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
+  pinMode(ledUp, OUTPUT);
+  digitalWrite(ledUp, LOW);
+  pinMode(ledDown, OUTPUT);
+  digitalWrite(ledDown, LOW);
 
   SPIFFS.begin();
 
@@ -44,6 +47,8 @@ void setup() {
 
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    digitalWrite(ledUp, LOW);
+    digitalWrite(ledDown, LOW);
     request->send(SPIFFS, "/index.html", String());
   });
 
@@ -54,13 +59,17 @@ void setup() {
     request->send(SPIFFS, "/script.js","text/javascript");
   });
 
-  server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledPin, HIGH);    
+  server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
+    digitalWrite(ledUp, HIGH);
+    delay(10000);
+    digitalWrite(ledDown, LOW);
     request->send(SPIFFS, "/index.html", String());
   });
 
-  server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledPin, LOW);    
+  server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
+    digitalWrite(ledDown, HIGH);
+    delay(10000);
+    digitalWrite(ledUp, LOW);
     request->send(SPIFFS, "/index.html", String());
   });
 
@@ -69,5 +78,5 @@ void setup() {
 }
 
 void loop() {
-
+  
 }
