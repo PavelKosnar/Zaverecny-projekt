@@ -6,11 +6,14 @@
 // nahrani slozky data: "pio run -t uploadfs"
 
 
-const char* ssid     = "KM";
-const char* password = "Pavel9317";
+const char* ssid     = "ESPNet";
+const char* password = "";
 
 const int ledUp = 5;
 const int ledDown = 4;
+const int nevim = 2;
+
+unsigned long time_now = 0;
 
 AsyncWebServer server(80);
 
@@ -18,11 +21,29 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "404: Not found");
 };
 
+void goUp() {
+  time_now = millis();
+  while (millis() < time_now + 10000) {
+    digitalWrite(ledUp, HIGH);
+  };
+  digitalWrite(ledUp, LOW);
+};
+
+void goDown() {
+  time_now = millis();
+  while (millis() < time_now + 10000) {
+    digitalWrite(ledDown, HIGH);
+  };
+  digitalWrite(ledDown, LOW);
+};
+
 void setup() {
   pinMode(ledUp, OUTPUT);
   digitalWrite(ledUp, LOW);
   pinMode(ledDown, OUTPUT);
   digitalWrite(ledDown, LOW);
+  pinMode(nevim, OUTPUT);
+  digitalWrite(nevim, LOW);
 
   SPIFFS.begin();
 
@@ -60,16 +81,12 @@ void setup() {
   });
 
   server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledUp, HIGH);
-    delay(10000);
-    digitalWrite(ledDown, LOW);
+    goUp();
     request->send(SPIFFS, "/index.html", String());
   });
 
   server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledDown, HIGH);
-    delay(10000);
-    digitalWrite(ledUp, LOW);
+    goDown();
     request->send(SPIFFS, "/index.html", String());
   });
 
