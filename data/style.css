@@ -15,3 +15,7 @@ h1 {
 .buttons {
     align-items: center;
 }
+
+#progress {
+    size: 300%;
+}

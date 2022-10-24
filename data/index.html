@@ -19,8 +19,11 @@
     </header>
     <main>
         <div class="container p-3 my-3 border bg-dark" style="margin-top: 0 !important;">
-            <p><a href="/up"><button class="btn btn-success active btn-block">UP</button></a></p>
-            <p><a href="/down"><button class="btn btn-danger active btn-block">DOWN</button></a></p>
+            <p><a href="/up"><button class="btn btn-success active btn-block" id="up">UP</button></a></p>
+            <p><a href="/down"><button class="btn btn-success active btn-block" id="down">DOWN</button></a></p>
+            <p><a href="/stop"><button class="btn btn-danger active btn-block" id="stop">STOP</button></a></p>
+            <p>Current state: <span id="state"></span></p>
+            <progress id="progress" value="0" max="100"></progress>
         </div>
 
         <div class="container p-3 my-3 border">

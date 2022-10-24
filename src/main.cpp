@@ -2,6 +2,7 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
+#include <AsyncMqttClient.h>
 
 // nahrani slozky data: "pio run -t uploadfs"
 
@@ -9,32 +10,47 @@
 const char* ssid     = "ESPNet";
 const char* password = "";
 
+const char *mqtt_broker = "broker.emqx.io";
+const int mqtt_port = 1883;
+
 const int ledUp = 5;
 const int ledDown = 4;
-const int nevim = 2;
+
+bool goUp = false;
+bool goDown = false;
+bool stop = false;
 
 unsigned long time_now = 0;
 
 AsyncWebServer server(80);
+AsyncMqttClient mqttClient;
+
+void connectToMqtt() {
+  Serial.println("Connecting to MQTT...");
+  mqttClient.connect();
+}
+
+void onMqttConnect(bool sessionPresent) {
+  Serial.println("Connected to MQTT.");
+  Serial.print("Session present: ");
+  Serial.println(sessionPresent);
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+  Serial.println("Disconnected from MQTT.");
+  if (WiFi.isConnected()) {
+    connectToMqtt();
+  }
+}
+
+void onMqttPublish(uint16_t packetId) {
+  Serial.print("Publish acknowledged.");
+  Serial.print("  packetId: ");
+  Serial.println(packetId);
+}
 
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "404: Not found");
-};
-
-void goUp() {
-  time_now = millis();
-  while (millis() < time_now + 10000) {
-    digitalWrite(ledUp, HIGH);
-  };
-  digitalWrite(ledUp, LOW);
-};
-
-void goDown() {
-  time_now = millis();
-  while (millis() < time_now + 10000) {
-    digitalWrite(ledDown, HIGH);
-  };
-  digitalWrite(ledDown, LOW);
 };
 
 void setup() {
@@ -42,14 +58,17 @@ void setup() {
   digitalWrite(ledUp, LOW);
   pinMode(ledDown, OUTPUT);
   digitalWrite(ledDown, LOW);
-  pinMode(nevim, OUTPUT);
-  digitalWrite(nevim, LOW);
 
   SPIFFS.begin();
-
   Serial.begin(115200);
   delay(10);
   Serial.println('\n');
+
+  mqttClient.onConnect(onMqttConnect);
+  mqttClient.onDisconnect(onMqttDisconnect);
+  mqttClient.onPublish(onMqttPublish);
+  mqttClient.setServer(mqtt_broker, mqtt_port);
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.print("Connecting to ");
@@ -66,8 +85,12 @@ void setup() {
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
 
+  Serial.println("Connecting to MQTT...");
+  mqttClient.connect();
+
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    stop = true;
     digitalWrite(ledUp, LOW);
     digitalWrite(ledDown, LOW);
     request->send(SPIFFS, "/index.html", String());
@@ -81,12 +104,27 @@ void setup() {
   });
 
   server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
-    goUp();
+    if (goUp == false) {
+      time_now = millis();
+    }
+    goUp = true;
+    goDown = false;
+    stop = false;
     request->send(SPIFFS, "/index.html", String());
   });
 
   server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
-    goDown();
+    if (goDown == false) {
+      time_now = millis();
+    }
+    goDown = true;
+    goUp = false;
+    stop = false;
+    request->send(SPIFFS, "/index.html", String());
+  });
+  
+  server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
+    stop = true;
     request->send(SPIFFS, "/index.html", String());
   });
 
@@ -95,5 +133,31 @@ void setup() {
 }
 
 void loop() {
+  if (goUp == true) {
+    if (stop == false) {
+      digitalWrite(ledDown, LOW);
+      digitalWrite(ledUp, HIGH);
+      if (millis() > time_now + 10000) {
+        digitalWrite(ledUp, LOW);
+        goUp = false;
+      }
+    }
+    else {
+      digitalWrite(ledUp, LOW);
+    }
+  }
+  else if (goDown == true) {
+    if (stop == false) {
+      digitalWrite(ledUp, LOW);
+      digitalWrite(ledDown, HIGH);
+      if (millis() > time_now + 10000) {
+        digitalWrite(ledDown, LOW);
+        goDown = false;
+      }
+    }
+    else {
+      digitalWrite(ledDown, LOW);
+    }
+  }
   
 }
