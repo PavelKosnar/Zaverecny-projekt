@@ -2,7 +2,7 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
-#include <AsyncMqttClient.h>
+#include <PubSubClient.h>
 
 // nahrani slozky data: "pio run -t uploadfs"
 
@@ -10,8 +10,10 @@
 const char* ssid     = "ESPNet";
 const char* password = "";
 
-const char *mqtt_broker = "broker.emqx.io";
+const char* mqtt_broker = "#.#.#.#";
 const int mqtt_port = 1883;
+const char* mqtt_username = "homeassistant";
+const char* mqtt_password = "#";
 
 const int ledUp = 5;
 const int ledDown = 4;
@@ -23,35 +25,55 @@ bool stop = false;
 unsigned long time_now = 0;
 
 AsyncWebServer server(80);
-AsyncMqttClient mqttClient;
+WiFiClient espClient;
+PubSubClient client(espClient);
 
-void connectToMqtt() {
-  Serial.println("Connecting to MQTT...");
-  mqttClient.connect();
-}
-
-void onMqttConnect(bool sessionPresent) {
-  Serial.println("Connected to MQTT.");
-  Serial.print("Session present: ");
-  Serial.println(sessionPresent);
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  Serial.println("Disconnected from MQTT.");
-  if (WiFi.isConnected()) {
-    connectToMqtt();
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Connecting MQTT...");
+    if (client.connect("core-mosquitto", mqtt_username, mqtt_password)) {
+      Serial.println("Connected");
+    } else {
+      Serial.print("Failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" trying again in 5 seconds");
+      delay(5000);
+    }
   }
-}
-
-void onMqttPublish(uint16_t packetId) {
-  Serial.print("Publish acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
 }
 
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "404: Not found");
 };
+
+void stopMovement(const char* topic) {
+  goUp = false;
+  goDown = false;
+  stop = true;
+  digitalWrite(ledUp, LOW);
+  digitalWrite(ledDown, LOW);
+  client.publish("movement", topic, true);
+}
+
+void movement(bool direction, bool otherDirection, const char* topic) {
+  time_now = millis();
+  client.publish("movement", topic, true);
+  direction = true;
+  otherDirection = false;
+  stop = false;
+  if (topic == "up") {
+    goUp = direction;
+    goDown = otherDirection;
+    digitalWrite(ledDown, LOW);
+    digitalWrite(ledUp, HIGH);
+  }
+  else if (topic == "down") {
+    goDown = direction;
+    goUp = otherDirection;
+    digitalWrite(ledUp, LOW);
+    digitalWrite(ledDown, HIGH);
+  }
+}
 
 void setup() {
   pinMode(ledUp, OUTPUT);
@@ -63,11 +85,6 @@ void setup() {
   Serial.begin(115200);
   delay(10);
   Serial.println('\n');
-
-  mqttClient.onConnect(onMqttConnect);
-  mqttClient.onDisconnect(onMqttDisconnect);
-  mqttClient.onPublish(onMqttPublish);
-  mqttClient.setServer(mqtt_broker, mqtt_port);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -85,8 +102,9 @@ void setup() {
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
 
+  client.setServer(mqtt_broker, mqtt_port);
   Serial.println("Connecting to MQTT...");
-  mqttClient.connect();
+  client.connect("core-mosquitto", mqtt_username, mqtt_password);
 
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -105,26 +123,24 @@ void setup() {
 
   server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
     if (goUp == false) {
-      time_now = millis();
+      movement(goUp, goDown, "up");
+    } else {
+      stopMovement("stop");
     }
-    goUp = true;
-    goDown = false;
-    stop = false;
     request->send(SPIFFS, "/index.html", String());
   });
 
   server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
     if (goDown == false) {
-      time_now = millis();
+      movement(goDown, goUp, "down");
+    } else {
+      stopMovement("stop");
     }
-    goDown = true;
-    goUp = false;
-    stop = false;
     request->send(SPIFFS, "/index.html", String());
   });
   
   server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
-    stop = true;
+    stopMovement("stop");
     request->send(SPIFFS, "/index.html", String());
   });
 
@@ -133,31 +149,18 @@ void setup() {
 }
 
 void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
   if (goUp == true) {
-    if (stop == false) {
-      digitalWrite(ledDown, LOW);
-      digitalWrite(ledUp, HIGH);
-      if (millis() > time_now + 10000) {
-        digitalWrite(ledUp, LOW);
-        goUp = false;
-      }
-    }
-    else {
-      digitalWrite(ledUp, LOW);
+    if (millis() > time_now + 10000) {
+      stopMovement("top");
     }
   }
   else if (goDown == true) {
-    if (stop == false) {
-      digitalWrite(ledUp, LOW);
-      digitalWrite(ledDown, HIGH);
-      if (millis() > time_now + 10000) {
-        digitalWrite(ledDown, LOW);
-        goDown = false;
-      }
-    }
-    else {
-      digitalWrite(ledDown, LOW);
+    if (millis() > time_now + 10000) {
+      stopMovement("bottom");
     }
   }
-  
 }
