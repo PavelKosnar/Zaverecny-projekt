@@ -16,8 +16,8 @@ Kód si představuji psát v jazyce c++.
 
 # TO DO
 - ~~koupit součástky (esp8266, relé...)~~
-- napsat kód na rozsvícení ledek (simulace motoru)
-- připojit k home assistantu (MQTT a ESPHome)
+- ~~napsat kód na rozsvícení ledek (simulace motoru)~~
+- ~~připojit k home assistantu (MQTT)~~
 - naprogramovat:
   - žaluzie dolů
   - žaluzie nahoru
@@ -29,6 +29,9 @@ Kód si představuji psát v jazyce c++.
 - Fix:
   - Připojoval jsem se k 5G WiFi, kterou esp nepodporuje
   - Stačilo se připojit k normální 2.4GHZ WiFi
+### Nefunguje build
+- Fix:
+  - Smazat složku ./pio
 
 ## Zdroje
 1. MicroPython esp8266 tutorial:
