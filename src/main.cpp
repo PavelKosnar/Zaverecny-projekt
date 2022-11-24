@@ -3,6 +3,7 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <PubSubClient.h>
+#include <string.h>
 
 // nahrani slozky data: "pio run -t uploadfs"
 
@@ -13,7 +14,9 @@ const char* password = "";
 const char* mqtt_broker = "#.#.#.#";
 const int mqtt_port = 1883;
 const char* mqtt_username = "homeassistant";
-const char* mqtt_password = "#";
+const char* mqtt_password = "";
+
+const char* movement_topic = "movement";
 
 const int ledUp = 5;
 const int ledDown = 4;
@@ -52,26 +55,75 @@ void stopMovement(const char* topic) {
   stop = true;
   digitalWrite(ledUp, LOW);
   digitalWrite(ledDown, LOW);
-  client.publish("movement", topic, true);
+  client.publish(movement_topic, topic, true);
 }
 
 void movement(bool direction, bool otherDirection, const char* topic) {
-  time_now = millis();
-  client.publish("movement", topic, true);
-  direction = true;
-  otherDirection = false;
-  stop = false;
-  if (topic == "up") {
-    goUp = direction;
-    goDown = otherDirection;
-    digitalWrite(ledDown, LOW);
-    digitalWrite(ledUp, HIGH);
+  if (direction == true) {
+    stopMovement(topic);
+  } else {
+    time_now = millis();
+    direction = true;
+    otherDirection = false;
+    stop = false;
+    if (topic == "up") {
+      goUp = direction;
+      goDown = otherDirection;
+      digitalWrite(ledDown, LOW);
+      digitalWrite(ledUp, HIGH);
+      client.publish(movement_topic, topic, true);
+    }
+    else if (topic == "down") {
+      goDown = direction;
+      goUp = otherDirection;
+      digitalWrite(ledUp, LOW);
+      digitalWrite(ledDown, HIGH);
+      client.publish(movement_topic, topic, true);
+    }
   }
-  else if (topic == "down") {
-    goDown = direction;
-    goUp = otherDirection;
-    digitalWrite(ledUp, LOW);
-    digitalWrite(ledDown, HIGH);
+}
+
+void movementFinished() {
+  if (goUp == true) {
+    if (millis() > time_now + 10000) {
+      stopMovement("top");
+    }
+  }
+  else if (goDown == true) {
+    if (millis() > time_now + 10000) {
+      stopMovement("bottom");
+    }
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  String topic_str;
+  Serial.println();
+  Serial.print("Message received in topic: ");
+  Serial.print(topic);
+  Serial.print("     message:");
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  for (int i = 0; i < strlen(topic); i++) {
+    topic_str += topic[i];
+  }
+  Serial.print(message);
+  Serial.println();
+  Serial.println("-----------------------");
+  Serial.println();
+
+  if (topic_str == "commands") {
+    if (message == "up") {
+      movement(goUp, goDown, "up");
+    }
+    else if (message == "down") {
+      movement(goDown, goUp, "down");
+    }
+    else if (message == "stop") {
+      stopMovement("stop");
+    }
   }
 }
 
@@ -103,9 +155,11 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   client.setServer(mqtt_broker, mqtt_port);
+  client.setCallback(callback);
   Serial.println("Connecting to MQTT...");
   client.connect("core-mosquitto", mqtt_username, mqtt_password);
-
+  client.subscribe("commands");
+  
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     stop = true;
@@ -122,20 +176,12 @@ void setup() {
   });
 
   server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (goUp == false) {
-      movement(goUp, goDown, "up");
-    } else {
-      stopMovement("stop");
-    }
+    movement(goUp, goDown, "up");
     request->send(SPIFFS, "/index.html", String());
   });
 
   server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (goDown == false) {
-      movement(goDown, goUp, "down");
-    } else {
-      stopMovement("stop");
-    }
+    movement(goDown, goUp, "down");
     request->send(SPIFFS, "/index.html", String());
   });
   
@@ -153,14 +199,5 @@ void loop() {
     reconnect();
   }
   client.loop();
-  if (goUp == true) {
-    if (millis() > time_now + 10000) {
-      stopMovement("top");
-    }
-  }
-  else if (goDown == true) {
-    if (millis() > time_now + 10000) {
-      stopMovement("bottom");
-    }
-  }
+  movementFinished();
 }
