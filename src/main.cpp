@@ -4,28 +4,11 @@
 #include <FS.h>
 #include <PubSubClient.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include <vars.hpp>
 
 // nahrani slozky data: "pio run -t uploadfs"
-
-
-const char* ssid     = "ESPNet";
-const char* password = "";
-
-const char* mqtt_broker = "#.#.#.#";
-const int mqtt_port = 1883;
-const char* mqtt_username = "homeassistant";
-const char* mqtt_password = "";
-
-const char* movement_topic = "movement";
-
-const int ledUp = 5;
-const int ledDown = 4;
-
-bool goUp = false;
-bool goDown = false;
-bool stop = false;
-
-unsigned long time_now = 0;
 
 AsyncWebServer server(80);
 WiFiClient espClient;
@@ -62,7 +45,7 @@ void movement(bool direction, bool otherDirection, const char* topic) {
   if (direction == true) {
     stopMovement(topic);
   } else {
-    time_now = millis();
+    start_time = millis();
     direction = true;
     otherDirection = false;
     stop = false;
@@ -83,17 +66,47 @@ void movement(bool direction, bool otherDirection, const char* topic) {
   }
 }
 
-void movementFinished() {
+void state() {
   if (goUp == true) {
-    if (millis() > time_now + 10000) {
-      stopMovement("top");
+    if (millis() > start_time + 1000) {
+      current_position += 100 / path_length;
+      if (current_position > 100) {
+        current_position = 100;
+      }
+      if (current_position == 100) {
+        stopMovement("top");
+      } else {
+        start_time = millis();
+      }
     }
   }
   else if (goDown == true) {
-    if (millis() > time_now + 10000) {
-      stopMovement("bottom");
+    if (millis() > start_time + 1000) {
+      current_position -= 100 / path_length;
+      if (current_position < 0) {
+        current_position = 0;
+      }
+      if (current_position == 0) {
+        stopMovement("bottom");
+      } else {
+        start_time = millis();
+      }
     }
   }
+  if (goUp == true || goDown == true) {
+    if (millis() > state_time + 1000) {
+      state_time = millis();
+      state_message = (itoa(current_position, buffer, 10));
+      client.publish(state_topic, state_message, true);
+    }
+  } else {
+    if (millis() > state_time + 10000) {
+      state_time = millis();
+      state_message = (itoa(current_position, buffer, 10));
+      client.publish(state_topic, state_message, true);
+    }
+  }
+  
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -199,5 +212,5 @@ void loop() {
     reconnect();
   }
   client.loop();
-  movementFinished();
+  state();
 }
