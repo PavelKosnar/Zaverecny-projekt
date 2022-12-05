@@ -1,10 +1,10 @@
-const char* ssid     = "KM";
-const char* password = "Pavel9317";
+const char* ssid     = "ESPNet";
+const char* password = "";
 
-const char* mqtt_broker = "10.0.0.7";
+const char* mqtt_broker = "#.#.#.#";
 const int mqtt_port = 1883;
 const char* mqtt_username = "homeassistant";
-const char* mqtt_password = "quuSh5aem2aey1jeejoo9ul0She7IeshiepoYeing9aew0Tied2tohph3egheixu";
+const char* mqtt_password = "";
 
 byte mac[] = {0x00, 0x10, 0xFA, 0x6E, 0x38, 0x4A};
 
