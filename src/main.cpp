@@ -5,6 +5,8 @@
 #include <PubSubClient.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ArduinoHA.h>
+#include <Ethernet.h>
 
 #include <vars.hpp>
 
@@ -13,6 +15,12 @@
 AsyncWebServer server(80);
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+HADevice device(mac, sizeof(mac));
+HAMqtt mqtt(espClient, device);
+
+HASwitch switch1("switchUp");
+HASwitch switch2("switchDown");
 
 void reconnect() {
   while (!client.connected()) {
@@ -140,6 +148,21 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
+void onSwitchCommand(bool state, HASwitch* sender)
+{
+    if (sender == &switch1) {
+      movement(goUp, goDown, "up");
+        // the switch1 has been toggled
+        // state == true means ON state
+    } else if (sender == &switch2) {
+      movement(goDown, goUp, "down");
+        // the switch2 has been toggled
+        // state == true means ON state
+    }
+
+    sender->setState(state);
+}
+
 void setup() {
   pinMode(ledUp, OUTPUT);
   digitalWrite(ledUp, LOW);
@@ -172,6 +195,13 @@ void setup() {
   Serial.println("Connecting to MQTT...");
   client.connect("core-mosquitto", mqtt_username, mqtt_password);
   client.subscribe("commands");
+
+  switch1.setName("ESP8266 Up");
+  switch1.setIcon("mdi:lightbulb");
+  switch1.onCommand(onSwitchCommand);
+  switch2.setName("ESP8266 Down");
+  switch2.setIcon("mdi:lightbulb");
+  switch2.onCommand(onSwitchCommand);    
   
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -211,6 +241,7 @@ void loop() {
   if (!client.connected()) {
     reconnect();
   }
+  Ethernet.maintain();
   client.loop();
   state();
 }
