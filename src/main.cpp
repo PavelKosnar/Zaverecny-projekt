@@ -6,9 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ArduinoHA.h>
-#include <Ethernet.h>
 
 #include <vars.hpp>
+
+#define BROKER_ADDR IPAddress(#.#.#.#)
 
 // nahrani slozky data: "pio run -t uploadfs"
 
@@ -30,6 +31,19 @@ void reconnect() {
     } else {
       Serial.print("Failed, rc=");
       Serial.print(client.state());
+      Serial.println(" trying again in 5 seconds");
+      delay(5000);
+    }
+  }
+}
+
+void reconnectHA() {
+  while (!mqtt.isConnected()) {
+    Serial.print("Connecting to HA...");
+    if (mqtt.begin(BROKER_ADDR)) {
+      Serial.println("Connected");
+    } else {
+      Serial.print("Failed to connect to the HA");
       Serial.println(" trying again in 5 seconds");
       delay(5000);
     }
@@ -148,18 +162,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-void onSwitchCommand(bool state, HASwitch* sender)
-{
+void onSwitchCommand(bool state, HASwitch* sender) {
     if (sender == &switch1) {
       movement(goUp, goDown, "up");
-        // the switch1 has been toggled
-        // state == true means ON state
     } else if (sender == &switch2) {
       movement(goDown, goUp, "down");
-        // the switch2 has been toggled
-        // state == true means ON state
     }
-
     sender->setState(state);
 }
 
@@ -196,13 +204,16 @@ void setup() {
   client.connect("core-mosquitto", mqtt_username, mqtt_password);
   client.subscribe("commands");
 
+  // switch1.setAvailability(true);
   switch1.setName("ESP8266 Up");
   switch1.setIcon("mdi:lightbulb");
   switch1.onCommand(onSwitchCommand);
+  // switch2.setAvailability(true);
   switch2.setName("ESP8266 Down");
   switch2.setIcon("mdi:lightbulb");
-  switch2.onCommand(onSwitchCommand);    
+  switch2.onCommand(onSwitchCommand);
   
+  mqtt.begin(BROKER_ADDR);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     stop = true;
@@ -241,7 +252,10 @@ void loop() {
   if (!client.connected()) {
     reconnect();
   }
-  Ethernet.maintain();
+  if (!mqtt.isConnected()) {
+    reconnectHA();
+  }
   client.loop();
+  mqtt.loop();
   state();
 }

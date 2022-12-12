@@ -32,6 +32,7 @@ Kód si představuji psát v jazyce c++.
 ### Nefunguje build
 - Fix:
   - Smazat složku ./pio
+### ArduinoHA se nechce připojit k HA
 
 ## Zdroje
 1. MicroPython esp8266 tutorial:
