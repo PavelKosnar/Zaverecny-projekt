@@ -4,7 +4,7 @@ const char* password = "";
 const char* mqtt_broker = "#.#.#.#";
 const int mqtt_port = 1883;
 const char* mqtt_username = "homeassistant";
-const char* mqtt_password = "";
+const char* mqtt_password = "heslo";
 
 byte mac[] = {0x00, 0x10, 0xFA, 0x6E, 0x38, 0x4A};
 
@@ -14,9 +14,15 @@ const char* state_topic = "state";
 const int ledUp = 5;
 const int ledDown = 4;
 
+const byte DOWN_PIN(4), UP_PIN(5);
+const char* btnUpName = "btnUp";
+const char* btnDownName = "btnDown";
+
 bool goUp = false;
 bool goDown = false;
 bool stop = false;
+
+bool holdingBtn = false;
 
 unsigned long start_time = 0;
 unsigned long state_time = 0;

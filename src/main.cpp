@@ -6,41 +6,34 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ArduinoHA.h>
+#include <JC_Button.h>
 
 #include <vars.hpp>
 
-#define BROKER_ADDR IPAddress(#.#.#.#)
+#define BROKER_ADDR IPAddress(#,#,#,#)
 
 // nahrani slozky data: "pio run -t uploadfs"
 
 AsyncWebServer server(80);
-WiFiClient espClient;
-PubSubClient client(espClient);
+WiFiClient client;
 
 HADevice device(mac, sizeof(mac));
-HAMqtt mqtt(espClient, device);
+HAMqtt mqtt(client, device);
+/*
+HADeviceTrigger shortPressTriggerUp(HADeviceTrigger::ButtonShortPressType, btnUpName);
+HADeviceTrigger longPressTriggerUp(HADeviceTrigger::ButtonLongPressType, btnUpName);
+HADeviceTrigger shortPressTriggerDown(HADeviceTrigger::ButtonShortPressType, btnDownName);
+HADeviceTrigger longPressTriggerDown(HADeviceTrigger::ButtonLongPressType, btnDownName);
+Button btnUP(UP_PIN), btnDOWN(DOWN_PIN);*/
 
 HASwitch switch1("switchUp");
 HASwitch switch2("switchDown");
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Connecting MQTT...");
-    if (client.connect("core-mosquitto", mqtt_username, mqtt_password)) {
-      Serial.println("Connected");
-    } else {
-      Serial.print("Failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" trying again in 5 seconds");
-      delay(5000);
-    }
-  }
-}
+HASwitch switch3("switchStop");
 
 void reconnectHA() {
   while (!mqtt.isConnected()) {
-    Serial.print("Connecting to HA...");
-    if (mqtt.begin(BROKER_ADDR)) {
+    Serial.print("Connecting to MQTT...");
+    if (mqtt.begin(BROKER_ADDR, mqtt_username, mqtt_password)) {
       Serial.println("Connected");
     } else {
       Serial.print("Failed to connect to the HA");
@@ -48,6 +41,10 @@ void reconnectHA() {
       delay(5000);
     }
   }
+}
+
+void connected() {
+  Serial.println("Connected");
 }
 
 void notFound(AsyncWebServerRequest *request) {
@@ -60,7 +57,7 @@ void stopMovement(const char* topic) {
   stop = true;
   digitalWrite(ledUp, LOW);
   digitalWrite(ledDown, LOW);
-  client.publish(movement_topic, topic, true);
+  mqtt.publish(movement_topic, topic, true);
 }
 
 void movement(bool direction, bool otherDirection, const char* topic) {
@@ -76,14 +73,14 @@ void movement(bool direction, bool otherDirection, const char* topic) {
       goDown = otherDirection;
       digitalWrite(ledDown, LOW);
       digitalWrite(ledUp, HIGH);
-      client.publish(movement_topic, topic, true);
+      mqtt.publish(movement_topic, topic, true);
     }
     else if (topic == "down") {
       goDown = direction;
       goUp = otherDirection;
       digitalWrite(ledUp, LOW);
       digitalWrite(ledDown, HIGH);
-      client.publish(movement_topic, topic, true);
+      mqtt.publish(movement_topic, topic, true);
     }
   }
 }
@@ -119,13 +116,13 @@ void state() {
     if (millis() > state_time + 1000) {
       state_time = millis();
       state_message = (itoa(current_position, buffer, 10));
-      client.publish(state_topic, state_message, true);
+      mqtt.publish(state_topic, state_message, true);
     }
   } else {
     if (millis() > state_time + 10000) {
       state_time = millis();
       state_message = (itoa(current_position, buffer, 10));
-      client.publish(state_topic, state_message, true);
+      mqtt.publish(state_topic, state_message, true);
     }
   }
   
@@ -167,6 +164,8 @@ void onSwitchCommand(bool state, HASwitch* sender) {
       movement(goUp, goDown, "up");
     } else if (sender == &switch2) {
       movement(goDown, goUp, "down");
+    } else if (sender == &switch3) {
+      stopMovement("stop");
     }
     sender->setState(state);
 }
@@ -190,7 +189,8 @@ void setup() {
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.print(++i); Serial.print(' ');
+    Serial.print(++i);
+    Serial.print(' ');
   }
 
   Serial.println('\n');
@@ -198,22 +198,25 @@ void setup() {
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
 
-  client.setServer(mqtt_broker, mqtt_port);
-  client.setCallback(callback);
-  Serial.println("Connecting to MQTT...");
-  client.connect("core-mosquitto", mqtt_username, mqtt_password);
-  client.subscribe("commands");
+  device.setName("Blinds");
+  device.setSoftwareVersion("1.0.0");
 
-  // switch1.setAvailability(true);
-  switch1.setName("ESP8266 Up");
-  switch1.setIcon("mdi:lightbulb");
+  switch1.setName("Blinds Up");
+  switch1.setIcon("mdi:chevron-double-up");
   switch1.onCommand(onSwitchCommand);
-  // switch2.setAvailability(true);
-  switch2.setName("ESP8266 Down");
-  switch2.setIcon("mdi:lightbulb");
+  switch2.setName("Blinds Down");
+  switch2.setIcon("mdi:chevron-double-down");
   switch2.onCommand(onSwitchCommand);
+  switch3.setName("Blinds Stop");
+  switch3.setIcon("mdi:pause");
+  switch3.onCommand(onSwitchCommand);
   
-  mqtt.begin(BROKER_ADDR);
+  mqtt.onConnected(connected);
+  mqtt.begin(BROKER_ADDR, mqtt_username, mqtt_password);
+  mqtt.subscribe("commands");
+
+  /*btnUP.begin();
+  btnDOWN.begin();*/
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     stop = true;
@@ -249,13 +252,18 @@ void setup() {
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  if (!mqtt.isConnected()) {
-    reconnectHA();
-  }
-  client.loop();
   mqtt.loop();
+  /*btnUP.read();
+  btnDOWN.read();
+  if (btnUP.pressedFor(3000) && !holdingBtn) {
+    longPressTriggerUp.trigger();
+    holdingBtn = true;
+  } else if (btnUP.wasReleased()) {
+    if (holdingBtn) {
+      holdingBtn = false;
+    } else {
+      shortPressTriggerUp.trigger();
+    }
+  }*/
   state();
 }
