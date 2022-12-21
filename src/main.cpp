@@ -1,16 +1,15 @@
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <FS.h>
-#include <PubSubClient.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ArduinoHA.h>
-#include <JC_Button.h>
+#include <LittleFS.h>
+// #include <JC_Button.h>
 
 #include <vars.hpp>
 
-#define BROKER_ADDR IPAddress(#,#,#,#)
+#define BROKER_ADDR IPAddress(192,168,10,22)
 
 // nahrani slozky data: "pio run -t uploadfs"
 
@@ -26,15 +25,15 @@ HADeviceTrigger shortPressTriggerDown(HADeviceTrigger::ButtonShortPressType, btn
 HADeviceTrigger longPressTriggerDown(HADeviceTrigger::ButtonLongPressType, btnDownName);
 Button btnUP(UP_PIN), btnDOWN(DOWN_PIN);*/
 
-HASwitch switch1("switchUp");
-HASwitch switch2("switchDown");
-HASwitch switch3("switchStop");
+HAButton buttonUp("buttonUp");
+HAButton buttonDown("buttonDown");
+HAButton buttonStop("buttonStop");
 
 void reconnectHA() {
   while (!mqtt.isConnected()) {
     Serial.print("Connecting to MQTT...");
     if (mqtt.begin(BROKER_ADDR, mqtt_username, mqtt_password)) {
-      Serial.println("Connected");
+      Serial.println("Connected to MQTT");
     } else {
       Serial.print("Failed to connect to the HA");
       Serial.println(" trying again in 5 seconds");
@@ -44,7 +43,7 @@ void reconnectHA() {
 }
 
 void connected() {
-  Serial.println("Connected");
+  Serial.println("Connected to MQTT");
 }
 
 void notFound(AsyncWebServerRequest *request) {
@@ -159,15 +158,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-void onSwitchCommand(bool state, HASwitch* sender) {
-    if (sender == &switch1) {
+void onButtonCommand(HAButton* sender) {
+    if (sender == &buttonUp) {
       movement(goUp, goDown, "up");
-    } else if (sender == &switch2) {
+    } else if (sender == &buttonDown) {
       movement(goDown, goUp, "down");
-    } else if (sender == &switch3) {
+    } else if (sender == &buttonStop) {
       stopMovement("stop");
     }
-    sender->setState(state);
 }
 
 void setup() {
@@ -176,7 +174,7 @@ void setup() {
   pinMode(ledDown, OUTPUT);
   digitalWrite(ledDown, LOW);
 
-  SPIFFS.begin();
+  LittleFS.begin();
   Serial.begin(115200);
   delay(10);
   Serial.println('\n');
@@ -193,7 +191,7 @@ void setup() {
     Serial.print(' ');
   }
 
-  Serial.println('\n');
+  Serial.print("\n");
   Serial.println("Connected");  
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
@@ -201,19 +199,19 @@ void setup() {
   device.setName("Blinds");
   device.setSoftwareVersion("1.0.0");
 
-  switch1.setName("Blinds Up");
-  switch1.setIcon("mdi:chevron-double-up");
-  switch1.onCommand(onSwitchCommand);
-  switch2.setName("Blinds Down");
-  switch2.setIcon("mdi:chevron-double-down");
-  switch2.onCommand(onSwitchCommand);
-  switch3.setName("Blinds Stop");
-  switch3.setIcon("mdi:pause");
-  switch3.onCommand(onSwitchCommand);
+  buttonUp.setName("Blinds Up");
+  buttonUp.setIcon("mdi:chevron-double-up");
+  buttonDown.setName("Blinds Down");
+  buttonDown.setIcon("mdi:chevron-double-down");
+  buttonStop.setName("Blinds Stop");
+  buttonStop.setIcon("mdi:pause");
+
+  buttonUp.onCommand(onButtonCommand);
+  buttonDown.onCommand(onButtonCommand);
+  buttonStop.onCommand(onButtonCommand);
   
   mqtt.onConnected(connected);
   mqtt.begin(BROKER_ADDR, mqtt_username, mqtt_password);
-  mqtt.subscribe("commands");
 
   /*btnUP.begin();
   btnDOWN.begin();*/
@@ -222,29 +220,29 @@ void setup() {
     stop = true;
     digitalWrite(ledUp, LOW);
     digitalWrite(ledDown, LOW);
-    request->send(SPIFFS, "/index.html", String());
+    request->send(LittleFS, "/index.html", String());
   });
 
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/style.css","text/css");
+    request->send(LittleFS, "/style.css","text/css");
   });
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/script.js","text/javascript");
+    request->send(LittleFS, "/script.js","text/javascript");
   });
 
   server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
     movement(goUp, goDown, "up");
-    request->send(SPIFFS, "/index.html", String());
+    request->send(LittleFS, "/index.html", String());
   });
 
   server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
     movement(goDown, goUp, "down");
-    request->send(SPIFFS, "/index.html", String());
+    request->send(LittleFS, "/index.html", String());
   });
   
   server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
     stopMovement("stop");
-    request->send(SPIFFS, "/index.html", String());
+    request->send(LittleFS, "/index.html", String());
   });
 
   server.onNotFound(notFound);
