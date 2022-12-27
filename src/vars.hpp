@@ -16,14 +16,17 @@ bool goDown = false;
 bool stop = false;
 
 String tiltDirection = "stop";
+String tiltFully = "no";
 unsigned long tiltTime;
 unsigned long pauseTime;
+unsigned long fullTiltTime;
 int tilt_position = 0;
 
 unsigned long start_time = 0;
 unsigned long state_time = 0;
 int current_position = 0;
 int path_length = 10;
+int tilt_length = 3;
 char* state_message;
 char* tilt_message;
 char buffer [256];

@@ -88,6 +88,7 @@ void movement(bool direction, bool otherDirection, const char* topic) {
       goDown = otherDirection;
       digitalWrite(ledDown, LOW);
       digitalWrite(ledUp, HIGH);
+      tiltFully = "up";
       mqtt.publish(movement_topic, topic, true);
     }
     else if (topic == "down") {
@@ -95,6 +96,7 @@ void movement(bool direction, bool otherDirection, const char* topic) {
       goUp = otherDirection;
       digitalWrite(ledUp, LOW);
       digitalWrite(ledDown, HIGH);
+      tiltFully = "down";
       mqtt.publish(movement_topic, topic, true);
     }
   }
@@ -148,46 +150,90 @@ void tiltMovement(String tilt) {
   }
 }
 
+void fullTilt() {
+  if (tiltFully == "up" && current_position >= 100) {
+    tiltFully = "no";
+  }
+  else if (tiltFully == "down" && current_position <= 0) {
+    tiltFully = "no";
+  }
+  if (tiltFully == "up") {
+    if (!stop && tilt_position < 100) {
+      stop = true;
+      fullTiltTime = millis();
+      mqtt.publish(movement_topic, "Tilting up...", true);
+    }
+  }
+  else if (tiltFully == "down") {
+    if (!stop && tilt_position > 0) {
+      stop = true;
+      fullTiltTime = millis();
+      mqtt.publish(movement_topic, "Tilting down...", true);
+    }
+  }
+  if (stop) {
+    if (tiltFully == "up" && fullTiltTime + 400 < millis()) {
+      tilt_position += 10;
+      if (tilt_position > 100) {
+        tilt_position = 100;
+      }
+      fullTiltTime = millis();
+    }
+    else if (tiltFully == "down" && fullTiltTime + 400 < millis()) {
+      tilt_position -= 10;
+      if (tilt_position < 0) {
+        tilt_position = 0;
+      }
+      fullTiltTime = millis();
+    }
+    if (tilt_position >= 100 && tiltFully == "up" || tilt_position <= 0 && tiltFully == "down") {
+      stop = false;
+      tiltFully = "no";
+      mqtt.publish(movement_topic, "Done", true);
+    }
+  }
+}
+
 void state() {
-  if (goUp == true) {
-    if (millis() > start_time + 1000) {
-      current_position += 100 / path_length;
-      if (current_position > 100) {
-        current_position = 100;
-      }
-      if (current_position == 100) {
-        stopMovement("top");
-      } else {
-        start_time = millis();
-      }
-    }
-    tilt_position = 100;
-  }
-  else if (goDown == true) {
-    if (millis() > start_time + 1000) {
-      current_position -= 100 / path_length;
-      if (current_position < 0) {
-        current_position = 0;
-      }
-      if (current_position == 0) {
-        stopMovement("bottom");
-      } else {
-        start_time = millis();
+  if (!stop) {
+    if (goUp == true) {
+      if (millis() > start_time + 1000) {
+        current_position += 100 / path_length;
+        if (current_position > 100) {
+          current_position = 100;
+        }
+        if (current_position == 100) {
+          stopMovement("top");
+        } else {
+          start_time = millis();
+        }
       }
     }
-    tilt_position = 0;
-  }
-  if (goUp == true || goDown == true) {
-    if (millis() > state_time + 1000) {
-      state_time = millis();
-      state_message = itoa(current_position, buffer, 10);
-      mqtt.publish(state_topic, state_message, true);
+    else if (goDown == true) {
+      if (millis() > start_time + 1000) {
+        current_position -= 100 / path_length;
+        if (current_position < 0) {
+          current_position = 0;
+        }
+        if (current_position == 0) {
+          stopMovement("bottom");
+        } else {
+          start_time = millis();
+        }
+      }
     }
-  } else {
-    if (millis() > state_time + 10000) {
-      state_time = millis();
-      state_message = itoa(current_position, buffer, 10);
-      mqtt.publish(state_topic, state_message, true);
+    if (goUp == true || goDown == true) {
+      if (millis() > state_time + 1000) {
+        state_time = millis();
+        state_message = itoa(current_position, buffer, 10);
+        mqtt.publish(state_topic, state_message, true);
+      }
+    } else {
+      if (millis() > state_time + 10000) {
+        state_time = millis();
+        state_message = itoa(current_position, buffer, 10);
+        mqtt.publish(state_topic, state_message, true);
+      }
     }
   }
 }
@@ -334,6 +380,7 @@ void setup() {
 
 void loop() {
   mqtt.loop();
+  fullTilt();
   state();
   tiltMovement(tiltDirection);
 }
