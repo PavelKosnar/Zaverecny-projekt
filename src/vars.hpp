@@ -8,8 +8,8 @@ const char* movement_topic = "movement";
 const char* state_topic = "state";
 const char* tilt_topic = "tilt";
 
-const int ledUp = 5;
-const int ledDown = 4;
+const int pinUp = 5;
+const int pinDown = 4;
 
 bool goUp = false;
 bool goDown = false;

@@ -19,3 +19,6 @@ h1 {
 #progress {
     size: 300%;
 }
+.jumbotron {
+    border-radius: 0 !important;
+}

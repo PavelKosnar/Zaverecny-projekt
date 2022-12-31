@@ -65,37 +65,35 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "404: Not found");
 };
 
-void stopMovement(const char* topic) {
+void stopMovement(const char* reason) {
   goUp = false;
   goDown = false;
   stop = true;
   tiltDirection = "stop";
-  digitalWrite(ledUp, LOW);
-  digitalWrite(ledDown, LOW);
-  mqtt.publish(movement_topic, topic, true);
+  digitalWrite(pinUp, LOW);
+  digitalWrite(pinDown, LOW);
+  mqtt.publish(movement_topic, reason, true);
 }
 
-void movement(bool direction, bool otherDirection, const char* topic) {
+void movement(bool direction, const char* topic) {
   if (direction == true) {
     stopMovement(topic);
   } else {
     start_time = millis();
-    direction = true;
-    otherDirection = false;
     stop = false;
     if (topic == "up") {
-      goUp = direction;
-      goDown = otherDirection;
-      digitalWrite(ledDown, LOW);
-      digitalWrite(ledUp, HIGH);
+      goUp = true;
+      goDown = false;
+      digitalWrite(pinDown, LOW);
+      digitalWrite(pinUp, HIGH);
       tiltFully = "up";
       mqtt.publish(movement_topic, topic, true);
     }
     else if (topic == "down") {
-      goDown = direction;
-      goUp = otherDirection;
-      digitalWrite(ledUp, LOW);
-      digitalWrite(ledDown, HIGH);
+      goDown = true;
+      goUp = false;
+      digitalWrite(pinUp, LOW);
+      digitalWrite(pinDown, HIGH);
       tiltFully = "down";
       mqtt.publish(movement_topic, topic, true);
     }
@@ -107,10 +105,10 @@ void startTilting(String direction) {
   tiltTime = millis() + 400;
   pauseTime = tiltTime + 800;
   if (direction == "up") {
-    digitalWrite(ledUp, HIGH);
+    digitalWrite(pinUp, HIGH);
   }
   else if (direction == "down") {
-    digitalWrite(ledDown, HIGH);
+    digitalWrite(pinDown, HIGH);
   }
 }
 
@@ -119,12 +117,12 @@ void tiltMovement(String tilt) {
     if (tiltTime < millis() && pauseTime > millis()) {
       tiltTime = pauseTime + 400;
       if (tilt == "up") {
-        digitalWrite(ledUp, LOW);
+        digitalWrite(pinUp, LOW);
         tilt_position += 10;
         tilt_message = itoa(tilt_position, buffer, 10);
       }
       else if (tilt == "down") {
-        digitalWrite(ledDown, LOW);
+        digitalWrite(pinDown, LOW);
         tilt_position -= 10;
         tilt_message = itoa(tilt_position, buffer, 10);
       }
@@ -141,10 +139,10 @@ void tiltMovement(String tilt) {
     else if (pauseTime < millis()) {
       pauseTime = tiltTime + 800;
       if (tilt == "up") {
-        digitalWrite(ledUp, HIGH);
+        digitalWrite(pinUp, HIGH);
       }
       else if (tilt == "down") {
-        digitalWrite(ledDown, HIGH);
+        digitalWrite(pinDown, HIGH);
       }
     }
   }
@@ -229,7 +227,7 @@ void state() {
         mqtt.publish(state_topic, state_message, true);
       }
     } else {
-      if (millis() > state_time + 10000) {
+      if (millis() > state_time + 300000) {
         state_time = millis();
         state_message = itoa(current_position, buffer, 10);
         mqtt.publish(state_topic, state_message, true);
@@ -249,10 +247,10 @@ void onMessage(const char* topic, const uint8_t* payload, uint16_t length) {
   }
   if (topic_str == "commands") {
     if (message == "up") {
-      movement(goUp, goDown, "up");
+      movement(goUp, "up");
     }
     else if (message == "down") {
-      movement(goDown, goUp, "down");
+      movement(goDown, "down");
     }
     else if (message == "stop") {
       stopMovement("stop");
@@ -260,7 +258,7 @@ void onMessage(const char* topic, const uint8_t* payload, uint16_t length) {
     else if (message == "tilt up") {
       if (tiltDirection == "up") {
         tiltDirection = "stop";
-        digitalWrite(ledUp,LOW);
+        digitalWrite(pinUp,LOW);
       } else {
         startTilting("up");
       }
@@ -268,7 +266,7 @@ void onMessage(const char* topic, const uint8_t* payload, uint16_t length) {
     else if (message == "tilt down") {
       if (tiltDirection == "down") {
         tiltDirection = "stop";
-        digitalWrite(ledDown,LOW);
+        digitalWrite(pinDown,LOW);
       } else {
         startTilting("down");
       }
@@ -278,10 +276,10 @@ void onMessage(const char* topic, const uint8_t* payload, uint16_t length) {
 
 void onButtonCommand(HAButton* sender) {
   if (sender == &buttonUp) {
-    movement(goUp, goDown, "up");
+    movement(goUp, "up");
   }
   else if (sender == &buttonDown) {
-    movement(goDown, goUp, "down");
+    movement(goDown, "down");
   }
   else if (sender == &buttonStop) {
     stopMovement("stop");
@@ -289,7 +287,7 @@ void onButtonCommand(HAButton* sender) {
   else if (sender == &buttonTiltUp) {
     if (tiltDirection == "up") {
       tiltDirection = "stop";
-      digitalWrite(ledUp,LOW);
+      digitalWrite(pinUp,LOW);
     } else {
       startTilting("up");
     }
@@ -297,7 +295,7 @@ void onButtonCommand(HAButton* sender) {
   else if (sender == &buttonTiltDown) {
     if (tiltDirection == "down") {
       tiltDirection = "stop";
-      digitalWrite(ledDown, LOW);
+      digitalWrite(pinDown, LOW);
     } else {
       startTilting("down");
     }
@@ -327,10 +325,10 @@ void setDevice() {
 }
 
 void setup() {
-  pinMode(ledUp, OUTPUT);
-  digitalWrite(ledUp, LOW);
-  pinMode(ledDown, OUTPUT);
-  digitalWrite(ledDown, LOW);
+  pinMode(pinUp, OUTPUT);
+  digitalWrite(pinUp, LOW);
+  pinMode(pinDown, OUTPUT);
+  digitalWrite(pinDown, LOW);
 
   LittleFS.begin();
   Serial.begin(115200);
@@ -347,8 +345,8 @@ void setup() {
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     stop = true;
-    digitalWrite(ledUp, LOW);
-    digitalWrite(ledDown, LOW);
+    digitalWrite(pinUp, LOW);
+    digitalWrite(pinDown, LOW);
     request->send(LittleFS, "/index.html", String());
   });
 
@@ -360,17 +358,37 @@ void setup() {
   });
 
   server.on("/up", HTTP_GET, [](AsyncWebServerRequest *request){
-    movement(goUp, goDown, "up");
+    movement(goUp, "up");
     request->send(LittleFS, "/index.html", String());
   });
 
   server.on("/down", HTTP_GET, [](AsyncWebServerRequest *request){
-    movement(goDown, goUp, "down");
+    movement(goDown, "down");
     request->send(LittleFS, "/index.html", String());
   });
   
   server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
     stopMovement("stop");
+    request->send(LittleFS, "/index.html", String());
+  });
+
+  server.on("/tilt-up", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (tiltDirection == "up") {
+      tiltDirection = "stop";
+      digitalWrite(pinUp,LOW);
+    } else {
+      startTilting("up");
+    }
+    request->send(LittleFS, "/index.html", String());
+  });
+
+  server.on("/tilt-down", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (tiltDirection == "down") {
+      tiltDirection = "stop";
+      digitalWrite(pinUp,LOW);
+    } else {
+      startTilting("down");
+    }
     request->send(LittleFS, "/index.html", String());
   });
 
