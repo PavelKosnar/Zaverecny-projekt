@@ -22,6 +22,8 @@ HAButton buttonDown("buttonDown");
 HAButton buttonStop("buttonStop");
 HAButton buttonTiltUp("buttonTiltUp");
 HAButton buttonTiltDown("buttonTiltDown");
+HAButton buttonStepUp("buttonStepUp");
+HAButton buttonStepDown("buttonStepDown");
 
 void connectWifi() {
   WiFi.mode(WIFI_STA);
@@ -65,19 +67,21 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "404: Not found");
 };
 
-void stopMovement(const char* reason) {
+void stopMovement(const char* reason, bool message) {
   goUp = false;
   goDown = false;
   stop = true;
   tiltDirection = "stop";
   digitalWrite(pinUp, LOW);
   digitalWrite(pinDown, LOW);
-  mqtt.publish(movement_topic, reason, true);
+  if (message) {
+    mqtt.publish(movement_topic, reason, true);
+  }
 }
 
 void movement(bool direction, const char* topic) {
   if (direction == true) {
-    stopMovement(topic);
+    stopMovement(topic, true);
   } else {
     start_time = millis();
     stop = false;
@@ -192,36 +196,61 @@ void fullTilt() {
   }
 }
 
+void startStepTilt(String direction) {
+  stepTiltDirection = direction;
+  stepTiltTime = millis() + 800;
+  if (direction == "up") {
+    digitalWrite(pinUp, HIGH);
+  }
+  else if (direction == "down") {
+    digitalWrite(pinDown, HIGH);
+  }
+}
+
+void stepTilt(String direction) {
+  if (direction != "none") {
+    if (stepTiltTime < millis()) {
+      stepTiltDirection = "none";
+      if (direction == "up") {
+        digitalWrite(pinUp, LOW);
+      }
+      if (direction == "down") {
+        digitalWrite(pinDown, LOW);
+      }
+    }
+  }
+}
+
 void state() {
   if (!stop) {
     if (goUp == true) {
-      if (millis() > start_time + 1000) {
-        current_position += 100 / path_length;
+      if (millis() > start_time + 100) {
+        current_position += 10 / path_length;
         if (current_position > 100) {
           current_position = 100;
         }
         if (current_position == 100) {
-          stopMovement("top");
+          stopMovement("top", true);
         } else {
           start_time = millis();
         }
       }
     }
     else if (goDown == true) {
-      if (millis() > start_time + 1000) {
-        current_position -= 100 / path_length;
+      if (millis() > start_time + 100) {
+        current_position -= 10 / path_length;
         if (current_position < 0) {
           current_position = 0;
         }
         if (current_position == 0) {
-          stopMovement("bottom");
+          stopMovement("bottom", true);
         } else {
           start_time = millis();
         }
       }
     }
     if (goUp == true || goDown == true) {
-      if (millis() > state_time + 1000) {
+      if (millis() > state_time + 100) {
         state_time = millis();
         state_message = itoa(current_position, buffer, 10);
         mqtt.publish(state_topic, state_message, true);
@@ -253,7 +282,7 @@ void onMessage(const char* topic, const uint8_t* payload, uint16_t length) {
       movement(goDown, "down");
     }
     else if (message == "stop") {
-      stopMovement("stop");
+      stopMovement("stop", true);
     }
     else if (message == "tilt up") {
       if (tiltDirection == "up") {
@@ -271,6 +300,14 @@ void onMessage(const char* topic, const uint8_t* payload, uint16_t length) {
         startTilting("down");
       }
     }
+    else if (message == "step up") {
+      stopMovement("", false);
+      startStepTilt("up");
+    }
+    else if (message == "step down") {
+      stopMovement("", false);
+      startStepTilt("down");
+    }
   }
 }
 
@@ -282,7 +319,7 @@ void onButtonCommand(HAButton* sender) {
     movement(goDown, "down");
   }
   else if (sender == &buttonStop) {
-    stopMovement("stop");
+    stopMovement("stop", true);
   }
   else if (sender == &buttonTiltUp) {
     if (tiltDirection == "up") {
@@ -300,6 +337,14 @@ void onButtonCommand(HAButton* sender) {
       startTilting("down");
     }
   }
+  else if (sender == &buttonStepUp) {
+    stopMovement("", false);
+    startStepTilt("up");
+  }
+  else if (sender == &buttonStepDown) {
+    stopMovement("", false);
+    startStepTilt("down");
+  }
 }
 
 void setDevice() {
@@ -313,15 +358,21 @@ void setDevice() {
   buttonStop.setName("Blinds Stop");
   buttonStop.setIcon("mdi:pause");
   buttonTiltUp.setName("Tilt Up");
-  buttonTiltUp.setIcon("mdi:chevron-up");
+  buttonTiltUp.setIcon("mdi:transfer-up");
   buttonTiltDown.setName("Tilt Down");
-  buttonTiltDown.setIcon("mdi:chevron-down");
+  buttonTiltDown.setIcon("mdi:transfer-down");
+  buttonStepUp.setName("Step Up");
+  buttonStepUp.setIcon("mdi:chevron-up");
+  buttonStepDown.setName("Step Down");
+  buttonStepDown.setIcon("mdi:chevron-down");
 
   buttonUp.onCommand(onButtonCommand);
   buttonDown.onCommand(onButtonCommand);
   buttonStop.onCommand(onButtonCommand);
   buttonTiltUp.onCommand(onButtonCommand);
   buttonTiltDown.onCommand(onButtonCommand);
+  buttonStepUp.onCommand(onButtonCommand);
+  buttonStepDown.onCommand(onButtonCommand);
 }
 
 void setup() {
@@ -368,7 +419,7 @@ void setup() {
   });
   
   server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
-    stopMovement("stop");
+    stopMovement("stop", true);
     request->send(LittleFS, "/index.html", String());
   });
 
@@ -401,4 +452,5 @@ void loop() {
   fullTilt();
   state();
   tiltMovement(tiltDirection);
+  stepTilt(stepTiltDirection);
 }

@@ -17,9 +17,11 @@ bool stop = false;
 
 String tiltDirection = "stop";
 String tiltFully = "no";
-unsigned long tiltTime;
-unsigned long pauseTime;
-unsigned long fullTiltTime;
+String stepTiltDirection = "none";
+unsigned long tiltTime = 0;
+unsigned long pauseTime = 0;
+unsigned long fullTiltTime = 0;
+unsigned long stepTiltTime = 0;
 int tilt_position = 0;
 
 unsigned long start_time = 0;
