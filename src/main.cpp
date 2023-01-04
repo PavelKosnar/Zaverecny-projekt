@@ -45,19 +45,6 @@ void connectWifi() {
   Serial.println(WiFi.localIP());
 }
 
-void reconnectHA() {
-  while (!mqtt.isConnected()) {
-    Serial.print("Connecting to MQTT...");
-    if (mqtt.begin(mqtt_broker, mqtt_username, mqtt_password)) {
-      Serial.println("Connected to MQTT");
-    } else {
-      Serial.print("Failed to connect to the HA");
-      Serial.println(" trying again in 5 seconds");
-      delay(5000);
-    }
-  }
-}
-
 void connected() {
   Serial.println("Connected to MQTT");
   mqtt.subscribe("commands");
@@ -81,7 +68,7 @@ void stopMovement(const char* reason, bool message) {
 
 void movement(bool direction, const char* topic) {
   if (direction == true) {
-    stopMovement(topic, true);
+    stopMovement("stop", true);
   } else {
     start_time = millis();
     stop = false;
@@ -106,6 +93,7 @@ void movement(bool direction, const char* topic) {
 
 void startTilting(String direction) {
   tiltDirection = direction;
+  stop = true;
   tiltTime = millis() + 400;
   pauseTime = tiltTime + 800;
   if (direction == "up") {
@@ -118,17 +106,17 @@ void startTilting(String direction) {
 
 void tiltMovement(String tilt) {
   if (tilt != "stop" && stop) {
+    Serial.println("OOOOOOOOOOOOOOOOO");
     if (tiltTime < millis() && pauseTime > millis()) {
+      Serial.println("-----------------------");
       tiltTime = pauseTime + 400;
       if (tilt == "up") {
         digitalWrite(pinUp, LOW);
         tilt_position += 10;
-        tilt_message = itoa(tilt_position, buffer, 10);
       }
       else if (tilt == "down") {
         digitalWrite(pinDown, LOW);
         tilt_position -= 10;
-        tilt_message = itoa(tilt_position, buffer, 10);
       }
       if (tilt_position >= 100) {
         tiltDirection = "stop";
@@ -138,6 +126,7 @@ void tiltMovement(String tilt) {
         tiltDirection = "stop";
         tilt_position = 0;
       }
+      tilt_message = itoa(tilt_position, buffer, 10);
       mqtt.publish(tilt_topic, tilt_message, true);
     }
     else if (pauseTime < millis()) {
@@ -212,11 +201,21 @@ void stepTilt(String direction) {
     if (stepTiltTime < millis()) {
       stepTiltDirection = "none";
       if (direction == "up") {
+        tilt_position += 20;
+        if (tilt_position > 100) {
+          tilt_position = 100;
+        }
         digitalWrite(pinUp, LOW);
       }
       if (direction == "down") {
+        tilt_position -= 20;
+        if (tilt_position < 0) {
+          tilt_position = 0;
+        }
         digitalWrite(pinDown, LOW);
       }
+      tilt_message = itoa(tilt_position, buffer, 10);
+      mqtt.publish(tilt_topic, tilt_message, true);
     }
   }
 }
