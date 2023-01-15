@@ -54,7 +54,7 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "404: Not found");
 };
 
-void stopMovement(const char* reason, bool message) {
+void stopMovement(const char* reason, bool message) {   //zastaví veškeré pohyby žaluzií
   goUp = false;
   goDown = false;
   stop = true;
@@ -68,30 +68,30 @@ void stopMovement(const char* reason, bool message) {
 
 void movement(bool direction, const char* topic) {
   if (direction == true) {
-    stopMovement("stop", true);
+    stopMovement("stop", true);   //pokud už se žaluzie pohybují daným směrem, pohyb zastaví
   } else {
     start_time = millis();
     stop = false;
     if (topic == "up") {
       goUp = true;
       goDown = false;
-      digitalWrite(pinDown, LOW);
+      digitalWrite(pinDown, LOW);   //vypne směr dolů a zapne nahoru
       digitalWrite(pinUp, HIGH);
       tiltFully = "up";
-      mqtt.publish(movement_topic, topic, true);
+      mqtt.publish(movement_topic, topic, true);    //pošle zprávu mqtt serveru se směrem nahoru
     }
     else if (topic == "down") {
       goDown = true;
       goUp = false;
-      digitalWrite(pinUp, LOW);
+      digitalWrite(pinUp, LOW);     //vypne směr nahoru a zapne dolů
       digitalWrite(pinDown, HIGH);
       tiltFully = "down";
-      mqtt.publish(movement_topic, topic, true);
+      mqtt.publish(movement_topic, topic, true);    //pošle zprávu mqtt serveru se směrem dolů
     }
   }
 }
 
-void startTilting(String direction) {
+void startTilting(String direction) {     //nastaví potřebné proměnné k naklápění
   tiltDirection = direction;
   stop = true;
   tiltTime = millis() + 400;
@@ -106,17 +106,15 @@ void startTilting(String direction) {
 
 void tiltMovement(String tilt) {
   if (tilt != "stop" && stop) {
-    Serial.println("OOOOOOOOOOOOOOOOO");
-    if (tiltTime < millis() && pauseTime > millis()) {
-      Serial.println("-----------------------");
-      tiltTime = pauseTime + 400;
+    if (tiltTime < millis() && pauseTime > millis()) {  //zastaví naklápění po 300ms
+      tiltTime = pauseTime + 300;
       if (tilt == "up") {
         digitalWrite(pinUp, LOW);
-        tilt_position += 10;
+        tilt_position += 17;
       }
-      else if (tilt == "down") {
+      else if (tilt == "down") {      //aktualizuje polohu naklopení
         digitalWrite(pinDown, LOW);
-        tilt_position -= 10;
+        tilt_position -= 17;
       }
       if (tilt_position >= 100) {
         tiltDirection = "stop";
@@ -129,8 +127,8 @@ void tiltMovement(String tilt) {
       tilt_message = itoa(tilt_position, buffer, 10);
       mqtt.publish(tilt_topic, tilt_message, true);
     }
-    else if (pauseTime < millis()) {
-      pauseTime = tiltTime + 800;
+    else if (pauseTime < millis()) {    //zapne naklápění po 600ms
+      pauseTime = tiltTime + 600;
       if (tilt == "up") {
         digitalWrite(pinUp, HIGH);
       }
@@ -141,7 +139,7 @@ void tiltMovement(String tilt) {
   }
 }
 
-void fullTilt() {
+void fullTilt() {   //rozhodne, na jakou stranu naklopit a poté akci provede
   if (tiltFully == "up" && current_position >= 100) {
     tiltFully = "no";
   }
@@ -163,14 +161,14 @@ void fullTilt() {
     }
   }
   if (stop) {
-    if (tiltFully == "up" && fullTiltTime + 400 < millis()) {
+    if (tiltFully == "up" && fullTiltTime + 200 < millis()) {
       tilt_position += 10;
       if (tilt_position > 100) {
         tilt_position = 100;
       }
       fullTiltTime = millis();
     }
-    else if (tiltFully == "down" && fullTiltTime + 400 < millis()) {
+    else if (tiltFully == "down" && fullTiltTime + 200 < millis()) {
       tilt_position -= 10;
       if (tilt_position < 0) {
         tilt_position = 0;
@@ -185,10 +183,10 @@ void fullTilt() {
   }
 }
 
-void startStepTilt(String direction) {
+void startStepTilt(String direction) {    //nastavení potřebných proměnných
   stepTiltDirection = direction;
-  stepTiltTime = millis() + 800;
-  if (direction == "up") {
+  stepTiltTime = millis() + 400;
+  if (direction == "up") {                //zapne naklápění na správnou stranu
     digitalWrite(pinUp, HIGH);
   }
   else if (direction == "down") {
@@ -196,19 +194,19 @@ void startStepTilt(String direction) {
   }
 }
 
-void stepTilt(String direction) {
+void stepTilt(String direction) {     //po 400ms naklápění vypne
   if (direction != "none") {
     if (stepTiltTime < millis()) {
       stepTiltDirection = "none";
       if (direction == "up") {
-        tilt_position += 20;
+        tilt_position += 25;
         if (tilt_position > 100) {
           tilt_position = 100;
         }
         digitalWrite(pinUp, LOW);
       }
       if (direction == "down") {
-        tilt_position -= 20;
+        tilt_position -= 25;
         if (tilt_position < 0) {
           tilt_position = 0;
         }
@@ -223,12 +221,12 @@ void stepTilt(String direction) {
 void state() {
   if (!stop) {
     if (goUp == true) {
-      if (millis() > start_time + 100) {
-        current_position += 10 / path_length;
+      if (millis() > start_time + 220) {    //každých 100 milisekund aktualizuje polohu žaluzií
+        current_position += 20 / path_length;
         if (current_position > 100) {
           current_position = 100;
         }
-        if (current_position == 100) {
+        if (current_position == 100) {      //v případě, že žaluzie dojedou 
           stopMovement("top", true);
         } else {
           start_time = millis();
@@ -236,8 +234,8 @@ void state() {
       }
     }
     else if (goDown == true) {
-      if (millis() > start_time + 100) {
-        current_position -= 10 / path_length;
+      if (millis() > start_time + 200) {      //stejná jako minulá, akorát dolů
+        current_position -= 20 / path_length;
         if (current_position < 0) {
           current_position = 0;
         }
@@ -249,17 +247,17 @@ void state() {
       }
     }
     if (goUp == true || goDown == true) {
-      if (millis() > state_time + 100) {
+      if (millis() > state_time + 200) {
         state_time = millis();
         state_message = itoa(current_position, buffer, 10);
         mqtt.publish(state_topic, state_message, true);
-      }
+      }   //pošle zprávu mqtt serveru s aktuální polohou
     } else {
       if (millis() > state_time + 300000) {
         state_time = millis();
         state_message = itoa(current_position, buffer, 10);
         mqtt.publish(state_topic, state_message, true);
-      }
+      }   //každých 5 minut pošle zprávu mqtt serveru s aktuální polohou
     }
   }
 }
@@ -389,9 +387,7 @@ void setup() {
 
   setDevice();
   
-  mqtt.onMessage(onMessage);
-  mqtt.onConnected(connected);
-  mqtt.begin(mqtt_broker, mqtt_username, mqtt_password);
+  
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     stop = true;
@@ -444,6 +440,10 @@ void setup() {
 
   server.onNotFound(notFound);
   server.begin();
+
+  mqtt.onMessage(onMessage);
+  mqtt.onConnected(connected);
+  mqtt.begin(mqtt_broker, mqtt_username, mqtt_password);
 }
 
 void loop() {

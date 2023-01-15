@@ -5,10 +5,10 @@ $(document).ready(function(){
     });
 
     $("#up").on('click', function() {
-        $("#blinds-img").hide(10000);
+        $("#blinds-img").hide('blind', 10000);
     });
     $("#down").on('click', function() {
-        $("#blinds-img").show(10000);
+        $("#blinds-img").show('blind', 10000);
     });
     $("#stop").on('click', function() {
         $("#blinds-img").stop();
