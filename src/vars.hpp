@@ -1,6 +1,6 @@
 const int mqtt_port = 1883;
 const char* mqtt_username = "homeassistant";
-const char* mqtt_password = "quuSh5aem2aey1jeejoo9ul0She7IeshiepoYeing9aew0Tied2tohph3egheixu";
+const char* mqtt_password = "";
 
 byte mac[] = {0x00, 0x10, 0xFA, 0x6E, 0x38, 0x4A};
 
